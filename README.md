@@ -1,6 +1,6 @@
-# DeepPoker
+# AlphaPoker
 
-DeepPoker is an open-source project for quantitative poker analysis. The repository integrates modules for education, data visualization, statistical studies, machine learning simulations, behavioral analysis, and interactive user interfaces, all aimed at enhancing poker strategy through a data-driven approach.
+AlphaPoker is an open-source project for quantitative poker analysis. The repository integrates modules for education, data visualization, statistical studies, machine learning simulations, behavioral analysis, and interactive user interfaces, all aimed at enhancing poker strategy through a data-driven approach.
 
 ## Table of Contents
 1. [Documentation and Education](#documentation-and-education)
