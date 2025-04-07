@@ -22,7 +22,7 @@ AlphaPoker is an open-source project for quantitative poker analysis. The reposi
 
 ---
 
-## Data Analysis and Visualization
+## [Data Analysis and Visualization](https://github.com/donatomartinelli/AlphaPoker/tree/main/Data%20Analysis%20and%20Visualization)
 - **Statistical Studies:**  
   Explore the role of statistics and combinatorics in poker using data-driven strategies.
 - **Advanced Data Visualization:**  
