@@ -65,4 +65,4 @@ We welcome contributions from the community. Please refer to our contributing gu
 ---
 
 ## License
-This project is open-source. See the LICENSE file for details.
+This project is open-source. See the [LICENSE](https://github.com/donatomartinelli/AlphaPoker/blob/main/LICENSE) file for details.
