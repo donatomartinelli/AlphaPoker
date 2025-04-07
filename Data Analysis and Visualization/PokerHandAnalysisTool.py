@@ -5,17 +5,32 @@ from itertools import combinations
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Initialize colorama
+# Initialize colorama for colored terminal output
 init(autoreset=True)
 
 
 def create_deck():
+    """
+    Creates a standard 52-card deck with colored suit symbols.
+    
+    Returns:
+        tuple: (list of card tuples, dict of suits with color codes)
+    """
     suits = {'♥': Fore.RED,'♦': Fore.RED,'♣': Fore.BLACK,'♠': Fore.BLACK}
     values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
     deck = [(value, suit) for suit in suits.keys() for value in values]
     return deck, suits
 
 def card_value(card):
+    """
+    Converts card face value to numeric value for comparison.
+    
+    Args:
+        card (tuple): A card in (value, suit) format
+        
+    Returns:
+        int: Numeric value of the card (2-14, with Ace high)
+    """
     value, _ = card
     if value.isdigit():
         return int(value)
@@ -29,12 +44,32 @@ def card_value(card):
         return 14
 
 def translate_suit(suit_text):
-    """Translate written suit names to symbols"""
+    """
+    Translate written suit names to symbols.
+    
+    Args:
+        suit_text (str): Text representation of a suit (e.g., 'h', 'hearts')
+        
+    Returns:
+        str: Unicode symbol for the suit
+    """
     suit_mapping = {'h': '♥','d': '♦','c': '♣','s': '♠'}
     return suit_mapping.get(suit_text.lower())
 
 def parse_card_input(card_str, deck):
-    """Parse a card string with written suit names and validate if it exists in the deck"""
+    """
+    Parse a card string with written suit names and validate if it exists in the deck.
+    
+    Args:
+        card_str (str): User input string like "A hearts" or "10 s"
+        deck (list): Current deck of cards
+        
+    Returns:
+        tuple: Valid card in (value, suit) format
+        
+    Raises:
+        ValueError: If input format is invalid or card is not in deck
+    """
     try:
         parts = card_str.strip().split()
         if len(parts) < 2:
@@ -62,6 +97,16 @@ def parse_card_input(card_str, deck):
         raise ValueError(str(e)) 
 
 def pick_random_cards(deck, n):
+    """
+    Pick n random cards from the deck.
+    
+    Args:
+        deck (list): Deck of cards
+        n (int): Number of cards to pick
+        
+    Returns:
+        list: n randomly selected cards
+    """
     random.shuffle(deck)
     picked_cards = [deck.pop() for _ in range(n)]
     return picked_cards
@@ -72,6 +117,12 @@ def order_hand_by_rank(hand):
     - Groups (four of a kind, three of a kind, pairs) come first
     - Highest groups come first
     - Remaining cards (kickers) are ordered by rank
+    
+    Args:
+        hand (list): List of card tuples
+        
+    Returns:
+        list: Ordered cards for display
     """
     values = [card_value(card) for card in hand]
     value_counts = Counter(values)
@@ -90,18 +141,47 @@ def order_hand_by_rank(hand):
     return [card[0] for card in sorted_cards]
 
 def format_cards(cards, suits):
-    """Format cards for display, properly ordered according to poker hand rules"""
+    """
+    Format cards for colored terminal display, properly ordered by poker hand rules.
+    
+    Args:
+        cards (list): List of card tuples
+        suits (dict): Dictionary mapping suit symbols to color codes
+        
+    Returns:
+        str: Formatted string of cards with colors
+    """
     ordered_cards = order_hand_by_rank(cards)
     return ' '.join(f"{suits[suit]}{value} {suit}{Style.RESET_ALL}" 
                    for value, suit in ordered_cards)
 
 def count_hole_cards_used(hole_cards, best_hand):
-    """Count how many cards from the hole cards are used in the best hand"""
+    """
+    Count how many cards from the hole cards are used in the best hand.
+    
+    Args:
+        hole_cards (list): Player's hole cards
+        best_hand (list): Best 5-card hand
+        
+    Returns:
+        int: Number of hole cards used (0, 1, or 2)
+    """
     hole_card_set = set(hole_cards)
     best_hand_set = set(best_hand)
     return len(hole_card_set.intersection(best_hand_set))
 
 def identify_hand_ranking(hand):
+    """
+    Identifies the poker hand ranking and creates a detailed ranking tuple.
+    
+    Args:
+        hand (list): 5-card hand
+        
+    Returns:
+        tuple: (hand_type_rank, detailed_ranking_tuple)
+            - hand_type_rank is 1-10 (1=High Card, 10=Royal Flush)
+            - detailed_ranking_tuple contains values for tiebreakers
+    """
     values = sorted([card_value(card) for card in hand], reverse=True)
     suits = [card[1] for card in hand]
     suit_counts = Counter(suits)
@@ -111,7 +191,7 @@ def identify_hand_ranking(hand):
     groups = sorted(((count, val) for val, count in value_counts.items()),
                    key=lambda x: (-x[0], -x[1]))
     
-    # Create detailed ranking tuple that includes all relevant information for comparing hands
+    # Helper function to create detailed ranking for tiebreakers
     def get_detailed_ranking(include_suits=False):
         # First element is hand type rank (1-10)
         # Subsequent elements are card values in order of importance for breaking ties
@@ -136,11 +216,12 @@ def identify_hand_ranking(hand):
             
         return tuple(ranking)
 
+    # Check for hand types
     is_flush = len(suit_counts) == 1
     is_straight = len(value_counts) == 5 and (values[0] - values[4] == 4)
     
-    # For hands where suits matter (flushes), include suit in ranking
-    # For other hands, ignore suits
+    # Return tuple with hand type rank and detailed ranking for tiebreakers
+    # Hand type ranks: 10=Royal Flush, 9=Straight Flush, 8=Four of a Kind, etc.
     if is_flush and is_straight:
         if values[0] == 14:  # Ace high
             return (10, (14, 13, 12, 11, 10, suits[0]))  # Royal Flush
@@ -170,8 +251,17 @@ def identify_hand_ranking(hand):
     return (1, get_detailed_ranking())  # High Card
 
 def format_best_hand(rank, suits):
+    """
+    Formats the hand ranking name for display.
+    
+    Args:
+        rank (tuple): Hand ranking tuple from identify_hand_ranking
+        suits (dict): Dictionary of suits with color codes
+        
+    Returns:
+        str: Human-readable hand ranking name
+    """
     rank_value = rank[0]
-    cards = rank[1]
 
     if rank_value == 10:
         return "Royal Flush "
@@ -195,15 +285,34 @@ def format_best_hand(rank, suits):
         return "High Card "
 
 def form_hands_from_board(hole_cards, board):
+    """
+    Generates all possible 5-card hands from hole cards and board.
+    
+    Args:
+        hole_cards (list): Player's 2 hole cards
+        board (list): Community cards on the board
+        
+    Returns:
+        list: All possible 5-card combinations
+    """
     all_cards = hole_cards + board
     return list(combinations(all_cards, 5))
 
 def generate_all_two_card_combinations(deck):
+    """
+    Generate all possible 2-card combinations from the deck.
+    
+    Args:
+        deck (list): Current deck of cards
+        
+    Returns:
+        list: All possible 2-card combinations
+    """
     return list(combinations(deck, 2))
 
 def calculate_hand_strength(position, position_counts):
     """
-    Calculate the hand strength based on position, and tie cardinality.
+    Calculate the hand strength based on position and tie cardinality.
     
     Args:
         position (str): Position of the hand (e.g., '1T', '2T', etc.)
@@ -221,7 +330,7 @@ def calculate_hand_strength(position, position_counts):
     # Calculate sum of hands in better positions
     sum_better_hands = sum(position_counts[i] for i in range(1, current_position))
     
-    # Calculate Position Factor
+    # Calculate Position Factor (percentage of hands that are worse)
     position_factor = 1 - (sum_better_hands / N)
     
     # Calculate initial Hand Strength
@@ -231,14 +340,20 @@ def calculate_hand_strength(position, position_counts):
 
 def normalize_strengths(ranked_hands):
     """
-    Normalize all hand strengths to a 0-100 scale
+    Normalize all hand strengths to a 0-100 scale.
+    
+    Args:
+        ranked_hands (list): List of hand dictionaries with strength values
+        
+    Returns:
+        list: Updated list with normalized strength values
     """
     # Get all strength values
     strengths = [hand['strength'] for hand in ranked_hands]
     min_strength = min(strengths)
     max_strength = max(strengths)
     
-    # Normalize each hand's strength
+    # Normalize each hand's strength to 0-100 scale
     for hand in ranked_hands:
         if max_strength == min_strength:
             hand['strength'] = 100 if hand['strength'] == max_strength else 0
@@ -249,13 +364,25 @@ def normalize_strengths(ranked_hands):
 
 
 def analyze_all_possible_hands(deck, board, my_cards, suits):
-    """Analyze and rank all possible two-card combinations for a given board"""
+    """
+    Analyze and rank all possible two-card combinations for a given board.
+    
+    Args:
+        deck (list): Current deck of cards
+        board (list): Community cards on the board
+        my_cards (list): Player's hole cards
+        suits (dict): Dictionary of suits with color codes
+        
+    Returns:
+        list: Ranked list of all possible hands with details
+    """
     # Create a temporary deck that includes my_cards for analysis
     temp_deck = deck.copy()
     for card in my_cards:
         if card not in temp_deck:
             temp_deck.append(card)
             
+    # Generate all possible 2-card combinations
     all_two_card_combinations = generate_all_two_card_combinations(temp_deck)
     hand_rankings = []
     
@@ -263,23 +390,31 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
     my_cards_set = set(my_cards)
     my_cards_tuple = tuple(sorted(my_cards, key=lambda x: (card_value(x), x[1])))
     
-    # Make sure to include my_cards in the analysis
+    # Process each possible combination
     for combination in all_two_card_combinations:
         # Convert combination to set for intersection
         combo_set = set(combination)
         
         # Skip combinations that have only one card in common with my_cards
+        # (these would be invalid hole card combinations)
         intersection = my_cards_set.intersection(combo_set)
         if len(intersection) == 1:  # Skip if only one card matches
             continue
             
         # Sort the combination for consistency
         sorted_combination = tuple(sorted(combination, key=lambda x: (card_value(x), x[1])))
+        
+        # Generate all possible 5-card hands with this combination
         possible_hands = form_hands_from_board(list(sorted_combination), board)
+        
+        # Find the best hand from all possibilities
         best_hand = max(possible_hands, key=lambda hand: identify_hand_ranking(hand))
         hand_rank = identify_hand_ranking(best_hand)
+        
+        # Count how many hole cards were used
         cards_used = count_hole_cards_used(sorted_combination, best_hand)
         
+        # Add to rankings
         hand_rankings.append({
             'hole_cards': sorted_combination,
             'best_hand': best_hand,
@@ -287,7 +422,7 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
             'cards_used': cards_used
         })
     
-    # If my cards aren't in the rankings yet, explicitly add them
+    # Make sure the player's cards are included in the analysis
     my_cards_in_rankings = any(
         set(hand['hole_cards']) == set(my_cards) for hand in hand_rankings
     )
@@ -305,10 +440,10 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
             'cards_used': cards_used
         })
     
-    # Sort by hand rank
+    # Sort by hand rank (best hands first)
     hand_rankings.sort(key=lambda x: x['rank'], reverse=True)
 
-    # Assign positions and calculate position counts
+    # Assign positions and handle ties
     current_rank = None
     current_position = 1
     position_counts = defaultdict(int)
@@ -316,10 +451,11 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
     for i, hand in enumerate(hand_rankings):
         if current_rank != hand['rank']:
             current_rank = hand['rank']
-            hand['position'] = f"{current_position}T"
+            hand['position'] = f"{current_position}T"  # T indicates a place/tier
             position_counts[current_position] += 1
             current_position += 1
         else:
+            # Same rank means same position (tie)
             hand['position'] = f"{current_position-1}T"
             position_counts[current_position-1] += 1
     
@@ -330,13 +466,19 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
             position_counts
         )
     
-    # Normalize strengths
+    # Normalize strengths to 0-100 scale
     hand_rankings = normalize_strengths(hand_rankings)
     
     return hand_rankings
 
 def display_hand_rankings(ranked_hands, suits):
-    """Display all possible two-card combinations and their rankings"""
+    """
+    Display all possible two-card combinations and their rankings in detail.
+    
+    Args:
+        ranked_hands (list): List of ranked hand dictionaries
+        suits (dict): Dictionary of suits with color codes
+    """
     print("\nAll possible two-card combinations ranked (from best to worst):")
     print("-" * 120)
     print(f"{'Pos':>4} | {'Hole Cards':<20} | {'Best Hand':<15} | {'Used':<4} | {'Strength':>8} | {'Best Five Cards'}")
@@ -357,6 +499,10 @@ def display_condensed_hand_rankings(ranked_hands, suits):
     Display condensed rankings of hole card combinations, grouping by position and hand values.
     Shows a more compressed view than the full rankings display.
     Uses 'os' suffix for hands that have both offsuit and suited variants.
+    
+    Args:
+        ranked_hands (list): List of ranked hand dictionaries
+        suits (dict): Dictionary of suits with color codes
     """
     print("\nCondensed Hand Rankings (from best to worst):")
     print("-" * 80)
@@ -378,7 +524,7 @@ def display_condensed_hand_rankings(ranked_hands, suits):
         val1, suit1 = card1
         val2, suit2 = card2
         
-        # Convert "10" to "T" for display
+        # Convert "10" to "T" for display (poker notation)
         if val1 == "10":
             val1 = "T"
         if val2 == "10":
@@ -439,12 +585,17 @@ def display_condensed_hand_rankings(ranked_hands, suits):
 def get_position_stats(ranked_hands):
     """
     Analyzes position statistics from ranked hands.
+    
+    Args:
+        ranked_hands (list): List of ranked hand dictionaries
+    
     Returns:
-    - last_position: integer of the highest position number
-    - position_counts: dictionary of position numbers and their frequencies
+        tuple: (last_position, position_counts) where:
+            - last_position: integer of the highest position number
+            - position_counts: dictionary of position numbers and their frequencies
     """
     # Extract position numbers (removing the 'T' suffix and converting to int)
-    positions = [int(hand['position'][:-1]) for hand in ranked_hands]  # Changed to [:-1] to handle the 'T' suffix better
+    positions = [int(hand['position'][:-1]) for hand in ranked_hands]
     
     # Get the highest position number
     last_position = max(positions)
@@ -455,12 +606,12 @@ def get_position_stats(ranked_hands):
         count = sum(1 for p in positions if p == pos)
         position_counts[pos] = count
     
-    # Make sure to return both values
+    # Return both values
     return last_position, position_counts
 
 def visualize_my_position(position_counts, my_position):
     """
-    Create a bar chart highlighting only the player's position
+    Create a bar chart highlighting only the player's position.
     
     Args:
         position_counts (dict): Dictionary of position numbers and their frequencies
@@ -523,7 +674,15 @@ def count_ties(ranked_hands):
     return position_ties
 
 def get_user_flop(deck):
-    """Get 3 cards for the flop from user input"""
+    """
+    Get 3 cards for the flop from user input.
+    
+    Args:
+        deck (list): Current deck of cards
+    
+    Returns:
+        list: 3 flop cards
+    """
     print("\nEnter 3 cards for the flop.")
     
     flop = []
@@ -541,7 +700,18 @@ def get_user_flop(deck):
     return flop
 
 def analyze_turn(my_cards, flop, deck, suits):
-    """Analyze hand strength after the turn card"""
+    """
+    Analyze hand strength after the turn card.
+    
+    Args:
+        my_cards (list): Player's hole cards
+        flop (list): Flop cards
+        deck (list): Current deck
+        suits (dict): Dictionary of suits with color codes
+    
+    Returns:
+        tuple: (turn_card, updated_deck)
+    """
     while True:
         turn_choice = input("\nDo you want to enter the turn card manually? (y/n): ").lower()
         if turn_choice in ['y', 'n']:
@@ -574,8 +744,7 @@ def analyze_turn(my_cards, flop, deck, suits):
     print("\nAnalyzing all possible combinations after turn...")
     ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
     
-    # Display updated rankings
-    # display_hand_rankings(ranked_hands, suits)
+    # Display updated rankings (condensed view)
     display_condensed_hand_rankings(ranked_hands, suits)
     
     # Find your hand's position and stats
@@ -604,7 +773,19 @@ def analyze_turn(my_cards, flop, deck, suits):
     return turn_card, deck
 
 def analyze_river(my_cards, flop, turn_card, deck, suits):
-    """Analyze hand strength after the river card"""
+    """
+    Analyze hand strength after the river card.
+    
+    Args:
+        my_cards (list): Player's hole cards
+        flop (list): Flop cards
+        turn_card (tuple): Turn card
+        deck (list): Current deck
+        suits (dict): Dictionary of suits with color codes
+    
+    Returns:
+        tuple: (river_card, updated_deck)
+    """
     while True:
         river_choice = input("\nDo you want to enter the river card manually? (y/n): ").lower()
         if river_choice in ['y', 'n']:
@@ -637,8 +818,7 @@ def analyze_river(my_cards, flop, turn_card, deck, suits):
     print("\nAnalyzing all possible combinations after river...")
     ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
     
-    # Display updated rankings
-    # display_hand_rankings(ranked_hands, suits)
+    # Display updated rankings (condensed view)
     display_condensed_hand_rankings(ranked_hands, suits)
     
     # Find your hand's position and stats
