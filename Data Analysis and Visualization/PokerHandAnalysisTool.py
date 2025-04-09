@@ -2,7 +2,6 @@ import random
 from collections import Counter, defaultdict
 from colorama import Fore, Style, init
 from itertools import combinations
-import pandas as pd
 import matplotlib.pyplot as plt
 
 # Initialize colorama for colored terminal output
@@ -471,116 +470,109 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
     
     return hand_rankings
 
-def display_hand_rankings(ranked_hands, suits):
+def display_hand_rankings(ranked_hands, suits, mode='detailed'):
     """
-    Display all possible two-card combinations and their rankings in detail.
+    Display all possible two-card combinations and their rankings.
     
     Args:
         ranked_hands (list): List of ranked hand dictionaries
         suits (dict): Dictionary of suits with color codes
+        mode (str): Display mode - 'detailed' or 'condensed'
     """
-    print("\nAll possible two-card combinations ranked (from best to worst):")
-    print("-" * 120)
-    print(f"{'Pos':>4} | {'Hole Cards':<20} | {'Best Hand':<15} | {'Used':<4} | {'Strength':>8} | {'Best Five Cards'}")
-    print("-" * 120)
-    
-    for hand in ranked_hands:
-        position_str = hand['position']
-        hole_cards = format_cards(hand['hole_cards'], suits)
-        best_hand = format_cards(hand['best_hand'], suits)
-        hand_type = format_best_hand(hand['rank'], suits)
-        cards_used = hand['cards_used']
-        strength = hand['strength']
+    if mode.lower() == 'condensed':
+        print("\nCondensed Hand Rankings (from best to worst):")
+        print("-" * 80)
+        print(f"{'Pos':>4} | {'Hand':^20} | {'Best Hand':<15} | {'Used':<4} | {'Strength':>8}")
+        print("-" * 80)
         
-        print(f"{position_str:>4} | {hole_cards:<20} | {hand_type:<15} | {cards_used:>4} | {strength:>8.2f} | {best_hand}")
-
-def display_condensed_hand_rankings(ranked_hands, suits):
-    """
-    Display condensed rankings of hole card combinations, grouping by position and hand values.
-    Shows a more compressed view than the full rankings display.
-    Uses 'os' suffix for hands that have both offsuit and suited variants.
-    
-    Args:
-        ranked_hands (list): List of ranked hand dictionaries
-        suits (dict): Dictionary of suits with color codes
-    """
-    print("\nCondensed Hand Rankings (from best to worst):")
-    print("-" * 80)
-    print(f"{'Pos':>4} | {'Hand':^20} | {'Best Hand':<15} | {'Used':<4} | {'Strength':>8}")
-    print("-" * 80)
-    
-    # Create a dictionary to track unique positions
-    position_data = {}
-    
-    # Process all hands and group by position
-    for hand in ranked_hands:
-        position = hand['position']
-        hand_type = format_best_hand(hand['rank'], suits).strip()
-        cards_used = hand['cards_used']
-        strength = hand['strength']
+        # Create a dictionary to track unique positions
+        position_data = {}
         
-        # Extract card values and suits
-        card1, card2 = hand['hole_cards']
-        val1, suit1 = card1
-        val2, suit2 = card2
-        
-        # Convert "10" to "T" for display (poker notation)
-        if val1 == "10":
-            val1 = "T"
-        if val2 == "10":
-            val2 = "T"
-        
-        # Order values (higher value first)
-        if card_value(card1) < card_value(card2):
-            val1, val2 = val2, val1
-            suit1, suit2 = suit2, suit1
+        # Process all hands and group by position
+        for hand in ranked_hands:
+            position = hand['position']
+            hand_type = format_best_hand(hand['rank'], suits).strip()
+            cards_used = hand['cards_used']
+            strength = hand['strength']
             
-        # Check if suited
-        is_suited = suit1 == suit2
-        
-        # Create a unique key for this hand type within the position
-        hand_key = f"{val1}{val2}"
-        
-        # Initialize position if needed
-        if position not in position_data:
-            position_data[position] = {
-                'hand_type': hand_type,
-                'cards_used': cards_used,
-                'strength': strength,
-                'hands': {}
-            }
-        
-        # Track suited/offsuit for this hand value combination
-        if hand_key not in position_data[position]['hands']:
-            position_data[position]['hands'][hand_key] = {'suited': False, 'offsuit': False}
+            # Extract card values and suits
+            card1, card2 = hand['hole_cards']
+            val1, suit1 = card1
+            val2, suit2 = card2
             
-        if is_suited:
-            position_data[position]['hands'][hand_key]['suited'] = True
-        else:
-            position_data[position]['hands'][hand_key]['offsuit'] = True
-    
-    # Sort positions by their numeric value
-    sorted_positions = sorted(position_data.keys(), key=lambda x: int(x[:-1]))
-    
-    # Display each position
-    for position in sorted_positions:
-        pos_info = position_data[position]
-        hand_notations = []
-        
-        # Build hand notations with combined os suffix for both suited and offsuit
-        for hand_key, suit_info in pos_info['hands'].items():
-            if suit_info['suited'] and suit_info['offsuit']:
-                # Both suited and offsuit exist - use combined notation
-                hand_notations.append(f"{hand_key}os")
-            elif suit_info['suited']:
-                hand_notations.append(f"{hand_key}s")
+            # Convert "10" to "T" for display (poker notation)
+            if val1 == "10":
+                val1 = "T"
+            if val2 == "10":
+                val2 = "T"
+            
+            # Order values (higher value first)
+            if card_value(card1) < card_value(card2):
+                val1, val2 = val2, val1
+                suit1, suit2 = suit2, suit1
+                
+            # Check if suited
+            is_suited = suit1 == suit2
+            
+            # Create a unique key for this hand type within the position
+            hand_key = f"{val1}{val2}"
+            
+            # Initialize position if needed
+            if position not in position_data:
+                position_data[position] = {
+                    'hand_type': hand_type,
+                    'cards_used': cards_used,
+                    'strength': strength,
+                    'hands': {}
+                }
+            
+            # Track suited/offsuit for this hand value combination
+            if hand_key not in position_data[position]['hands']:
+                position_data[position]['hands'][hand_key] = {'suited': False, 'offsuit': False}
+                
+            if is_suited:
+                position_data[position]['hands'][hand_key]['suited'] = True
             else:
-                hand_notations.append(f"{hand_key}o")
+                position_data[position]['hands'][hand_key]['offsuit'] = True
         
-        # Format the hand notations
-        formatted_notations = ' '.join(sorted(hand_notations))
+        # Sort positions by their numeric value
+        sorted_positions = sorted(position_data.keys(), key=lambda x: int(x[:-1]))
         
-        print(f"{position:>4} | {formatted_notations:<20} | {pos_info['hand_type']:<15} | {pos_info['cards_used']:>4} | {pos_info['strength']:>8.2f}")
+        # Display each position
+        for position in sorted_positions:
+            pos_info = position_data[position]
+            hand_notations = []
+            
+            # Build hand notations with combined os suffix for both suited and offsuit
+            for hand_key, suit_info in pos_info['hands'].items():
+                if suit_info['suited'] and suit_info['offsuit']:
+                    # Both suited and offsuit exist - use combined notation
+                    hand_notations.append(f"{hand_key}os")
+                elif suit_info['suited']:
+                    hand_notations.append(f"{hand_key}s")
+                else:
+                    hand_notations.append(f"{hand_key}o")
+            
+            # Format the hand notations
+            formatted_notations = ' '.join(sorted(hand_notations))
+            
+            print(f"{position:>4} | {formatted_notations:<20} | {pos_info['hand_type']:<15} | {pos_info['cards_used']:>4} | {pos_info['strength']:>8.2f}")
+    
+    else:  # detailed mode
+        print("\nAll possible two-card combinations ranked (from best to worst):")
+        print("-" * 120)
+        print(f"{'Pos':>4} | {'Hole Cards':<20} | {'Best Hand':<15} | {'Used':<4} | {'Strength':>8} | {'Best Five Cards'}")
+        print("-" * 120)
+        
+        for hand in ranked_hands:
+            position_str = hand['position']
+            hole_cards = format_cards(hand['hole_cards'], suits)
+            best_hand = format_cards(hand['best_hand'], suits)
+            hand_type = format_best_hand(hand['rank'], suits)
+            cards_used = hand['cards_used']
+            strength = hand['strength']
+            
+            print(f"{position_str:>4} | {hole_cards:<20} | {hand_type:<15} | {cards_used:>4} | {strength:>8.2f} | {best_hand}")
 
 def get_position_stats(ranked_hands):
     """
@@ -699,7 +691,7 @@ def get_user_flop(deck):
     
     return flop
 
-def analyze_turn(my_cards, flop, deck, suits):
+def analyze_turn(my_cards, flop, deck, suits, display_mode='condensed'):
     """
     Analyze hand strength after the turn card.
     
@@ -744,8 +736,8 @@ def analyze_turn(my_cards, flop, deck, suits):
     print("\nAnalyzing all possible combinations after turn...")
     ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
     
-    # Display updated rankings (condensed view)
-    display_condensed_hand_rankings(ranked_hands, suits)
+    # Display updated rankings 
+    display_hand_rankings(ranked_hands, suits, mode=display_mode)
     
     # Find your hand's position and stats
     filtered_hands = [
@@ -758,6 +750,7 @@ def analyze_turn(my_cards, flop, deck, suits):
     if filtered_hands:
         best_hand = filtered_hands[0]
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
+        print(f"Board: {format_cards(board, suits)}")
         print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
         print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
         print(f"Position: {best_hand['position']}")
@@ -772,7 +765,7 @@ def analyze_turn(my_cards, flop, deck, suits):
     
     return turn_card, deck
 
-def analyze_river(my_cards, flop, turn_card, deck, suits):
+def analyze_river(my_cards, flop, turn_card, deck, suits, display_mode='condensed'):
     """
     Analyze hand strength after the river card.
     
@@ -818,8 +811,8 @@ def analyze_river(my_cards, flop, turn_card, deck, suits):
     print("\nAnalyzing all possible combinations after river...")
     ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
     
-    # Display updated rankings (condensed view)
-    display_condensed_hand_rankings(ranked_hands, suits)
+    # Display updated rankings
+    display_hand_rankings(ranked_hands, suits, mode=display_mode)
     
     # Find your hand's position and stats
     filtered_hands = [
@@ -832,6 +825,7 @@ def analyze_river(my_cards, flop, turn_card, deck, suits):
     if filtered_hands:
         best_hand = filtered_hands[0]
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
+        print(f"Board: {format_cards(board, suits)}")
         print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
         print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
         print(f"Position: {best_hand['position']}")
@@ -850,6 +844,15 @@ def main():
     print("\nPoker Hand Analysis Tool")
     print("-" * 50)
     
+    # Choose display mode
+    display_mode = 'condensed'  # Default
+    while True:
+        mode_choice = input("Choose display mode (detailed/condensed or d/c): ").lower()
+        if mode_choice in ['detailed', 'condensed', 'd', 'c']:
+            display_mode = 'detailed' if mode_choice in ['detailed', 'd'] else 'condensed'
+            break
+        print("Please choose either 'detailed' or 'condensed'.")
+
     # Create a single deck
     deck, suits = create_deck()
     
@@ -920,8 +923,7 @@ def main():
         if set(my_cards) == set(hand['hole_cards'])
     ]
     
-    # display_hand_rankings(ranked_hands, suits)
-    display_condensed_hand_rankings(ranked_hands, suits)
+    display_hand_rankings(ranked_hands, suits, mode=display_mode)
 
 
     # Display tie statistics
@@ -937,6 +939,7 @@ def main():
     if filtered_hands:
         best_hand = filtered_hands[0]  # Already sorted by rank
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
+        print(f"Board: {format_cards(flop, suits)}")
         print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
         print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
         print(f"Position: {best_hand['position']}")
@@ -950,10 +953,10 @@ def main():
     
     
     # Analyze turn
-    turn_card, deck = analyze_turn(my_cards, flop, deck, suits)
+    turn_card, deck = analyze_turn(my_cards, flop, deck, suits, display_mode)
     
     # Analyze river
-    river_card, deck = analyze_river(my_cards, flop, turn_card, deck, suits)
+    river_card, deck = analyze_river(my_cards, flop, turn_card, deck, suits, display_mode)
     
     return my_cards, flop, turn_card, river_card, deck, suits
 
