@@ -309,31 +309,81 @@ def generate_all_two_card_combinations(deck):
     """
     return list(combinations(deck, 2))
 
-def calculate_hand_strength(position, position_counts):
+def get_detailed_position_stats(ranked_hands, my_position):
+    """
+    Get detailed statistics about hand position.
+    
+    Args:
+        ranked_hands (list): List of ranked hand dictionaries
+        my_position (str): Position of the player's hand (e.g., '1T', '3T')
+    
+    Returns:
+        dict: Detailed position statistics
+    """
+    # Extract position numbers (removing the 'T' suffix and converting to int)
+    my_pos_num = int(my_position[:-1])
+    
+    # Count ties and hands above and below
+    ties_above = set()
+    ties_below = set()
+    hands_above = 0
+    hands_below = 0
+    hands_in_my_tie = 0
+    
+    # Analyze each hand's position
+    for hand in ranked_hands:
+        pos_str = hand['position']
+        pos_num = int(pos_str[:-1])
+        
+        if pos_num < my_pos_num:
+            hands_above += 1
+            ties_above.add(pos_str)
+        elif pos_num > my_pos_num:
+            hands_below += 1
+            ties_below.add(pos_str)
+        else:  # Same position as mine
+            hands_in_my_tie += 1
+    
+    # Total number of hands (N)
+    total_hands = hands_above + hands_in_my_tie + hands_below
+    
+    return {
+        'ties_above': len(ties_above),
+        'hands_above': hands_above,
+        'ties_below': len(ties_below),
+        'hands_below': hands_below,
+        'hands_in_my_tie': hands_in_my_tie,
+        'total_hands': total_hands
+    }
+
+def calculate_hand_strength(position, position_counts, street='flop'):
     """
     Calculate the hand strength based on position and tie cardinality.
     
     Args:
         position (str): Position of the hand (e.g., '1T', '2T', etc.)
         position_counts (dict): Dictionary mapping positions to number of hands in that position
+        street (str): Current street - 'flop', 'turn', or 'river'
     
     Returns:
-        float: Normalized hand strength score from 0 to 100
+        float: Hand strength score from 0 to 100
     """
     # Convert position string to integer (remove 'T' suffix)
     current_position = int(position[:-1])
     
-    # Calculate total number of hands (N)
-    N = sum(position_counts.values())
+    # Calculate total number of hands below current position
+    hands_below = sum(position_counts[i] for i in range(current_position + 1, len(position_counts) + 1))
     
-    # Calculate sum of hands in better positions
-    sum_better_hands = sum(position_counts[i] for i in range(1, current_position))
+    # Set divisor based on street
+    if street == 'turn':
+        divisor = 1035
+    elif street == 'river':
+        divisor = 990
+    else:  # default to flop
+        divisor = 1081
     
-    # Calculate Position Factor (percentage of hands that are worse)
-    position_factor = 1 - (sum_better_hands / N)
-    
-    # Calculate initial Hand Strength
-    hand_strength = position_factor * 100
+    # Calculate Hand Strength as percentage of hands below your position
+    hand_strength = (hands_below / divisor) * 100
     
     return round(hand_strength, 2)
 
@@ -361,8 +411,7 @@ def normalize_strengths(ranked_hands):
     
     return ranked_hands
 
-
-def analyze_all_possible_hands(deck, board, my_cards, suits):
+def analyze_all_possible_hands(deck, board, my_cards, suits, street='flop'):
     """
     Analyze and rank all possible two-card combinations for a given board.
     
@@ -371,6 +420,7 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
         board (list): Community cards on the board
         my_cards (list): Player's hole cards
         suits (dict): Dictionary of suits with color codes
+        street (str): Current street - 'flop', 'turn', or 'river'
         
     Returns:
         list: Ranked list of all possible hands with details
@@ -462,7 +512,8 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
     for hand in hand_rankings:
         hand['strength'] = calculate_hand_strength(
             hand['position'],
-            position_counts
+            position_counts,
+            street
         )
     
     # Normalize strengths to 0-100 scale
@@ -470,7 +521,7 @@ def analyze_all_possible_hands(deck, board, my_cards, suits):
     
     return hand_rankings
 
-def display_hand_rankings(ranked_hands, suits, mode='detailed'):
+def display_hand_rankings(ranked_hands, suits, mode='condensed'):
     """
     Display all possible two-card combinations and their rankings.
     
@@ -732,9 +783,9 @@ def analyze_turn(my_cards, flop, deck, suits, display_mode='condensed'):
     # Create new board with turn
     board = flop + [turn_card]
     
-    # Analyze all possible hands with turn
+    # Analyze all possible hands with turn - specify we're on the turn
     print("\nAnalyzing all possible combinations after turn...")
-    ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
+    ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits, street='turn')
     
     # Display updated rankings 
     display_hand_rankings(ranked_hands, suits, mode=display_mode)
@@ -749,13 +800,16 @@ def analyze_turn(my_cards, flop, deck, suits, display_mode='condensed'):
     print("\nYour Hand Statistics After Turn:")
     if filtered_hands:
         best_hand = filtered_hands[0]
+        position_stats = get_detailed_position_stats(ranked_hands, best_hand['position'])
+
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
         print(f"Board: {format_cards(board, suits)}")
-        print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
-        print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
-        print(f"Position: {best_hand['position']}")
+        print(f"Your Hand: {format_cards(best_hand['best_hand'], suits)} - {format_best_hand(best_hand['rank'], suits)} ")
+        print(f"Cards Used: {best_hand['cards_used']}")
+        print(f"Your Tie: {best_hand['position']} - Hands in your tie: {position_stats['hands_in_my_tie']}")
+        print(f"Ties above yours: {position_stats['ties_above']} - Total hands above: {position_stats['hands_above']}")
+        print(f"Ties below yours: {position_stats['ties_below']} - Total hands below: {position_stats['hands_below']}")
         print(f"Strength: {best_hand['strength']:.2f}%")
-        print(f"Cards Used from Hole Cards: {best_hand['cards_used']}")
         
         # Visualize updated position distribution
         last_position, position_counts = get_position_stats(ranked_hands)
@@ -807,9 +861,9 @@ def analyze_river(my_cards, flop, turn_card, deck, suits, display_mode='condense
     # Create complete board
     board = flop + [turn_card, river_card]
     
-    # Analyze all possible hands with river
+    # Analyze all possible hands with river - specify we're on the river
     print("\nAnalyzing all possible combinations after river...")
-    ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits)
+    ranked_hands = analyze_all_possible_hands(deck, board, my_cards, suits, street='river')
     
     # Display updated rankings
     display_hand_rankings(ranked_hands, suits, mode=display_mode)
@@ -820,19 +874,22 @@ def analyze_river(my_cards, flop, turn_card, deck, suits, display_mode='condense
         if set(my_cards) == set(hand['hole_cards'])
     ]
     
-    # Display final statistics
-    print("\nYour Final Hand Statistics After River:")
+    # Display updated statistics
+    print("\nYour Hand Statistics After River:")
     if filtered_hands:
         best_hand = filtered_hands[0]
+        position_stats = get_detailed_position_stats(ranked_hands, best_hand['position'])
+
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
         print(f"Board: {format_cards(board, suits)}")
-        print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
-        print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
-        print(f"Position: {best_hand['position']}")
+        print(f"Your Hand: {format_cards(best_hand['best_hand'], suits)} - {format_best_hand(best_hand['rank'], suits)} ")
+        print(f"Cards Used: {best_hand['cards_used']}")
+        print(f"Your Tie: {best_hand['position']} - Hands in your tie: {position_stats['hands_in_my_tie']}")
+        print(f"Ties above yours: {position_stats['ties_above']} - Total hands above: {position_stats['hands_above']}")
+        print(f"Ties below yours: {position_stats['ties_below']} - Total hands below: {position_stats['hands_below']}")
         print(f"Strength: {best_hand['strength']:.2f}%")
-        print(f"Cards Used from Hole Cards: {best_hand['cards_used']}")
         
-        # Visualize final position distribution
+        # Visualize updated position distribution
         last_position, position_counts = get_position_stats(ranked_hands)
         visualize_my_position(position_counts, best_hand['position'])
     else:
@@ -913,9 +970,9 @@ def main():
     print("\nFlop:")
     print(format_cards(flop, suits))
     
-    # Analyze all possible hands
+    # Analyze all possible hands - specify we're on the flop
     print("\nAnalyzing all possible combinations...")
-    ranked_hands = analyze_all_possible_hands(deck, flop, my_cards, suits)
+    ranked_hands = analyze_all_possible_hands(deck, flop, my_cards, suits, street='flop')
     
     # Find your hand's position and stats
     filtered_hands = [
@@ -924,28 +981,23 @@ def main():
     ]
     
     display_hand_rankings(ranked_hands, suits, mode=display_mode)
-
-
-    # Display tie statistics
-    ties = count_ties(ranked_hands)
-    print("\nTie Statistics:")
-    if ties:
-        print(f"Total ties: {len(ties)}")
-    else:
-        print("No ties found.")
     
-    # Display your hand statistics
-    print("\nYour Hand Statistics:")
+    # Display updated statistics
+    print("\nYour Hand Statistics After Flop:")
     if filtered_hands:
-        best_hand = filtered_hands[0]  # Already sorted by rank
+        best_hand = filtered_hands[0]
+        position_stats = get_detailed_position_stats(ranked_hands, best_hand['position'])
+
         print(f"Hole Cards: {format_cards(best_hand['hole_cards'], suits)}")
         print(f"Board: {format_cards(flop, suits)}")
-        print(f"Best Five Cards: {format_cards(best_hand['best_hand'], suits)}")
-        print(f"Hand Type: {format_best_hand(best_hand['rank'], suits)}")
-        print(f"Position: {best_hand['position']}")
+        print(f"Your Hand: {format_cards(best_hand['best_hand'], suits)} - {format_best_hand(best_hand['rank'], suits)} ")
+        print(f"Cards Used: {best_hand['cards_used']}")
+        print(f"Your Tie: {best_hand['position']} - Hands in your tie: {position_stats['hands_in_my_tie']}")
+        print(f"Ties above yours: {position_stats['ties_above']} - Total hands above: {position_stats['hands_above']}")
+        print(f"Ties below yours: {position_stats['ties_below']} - Total hands below: {position_stats['hands_below']}")
         print(f"Strength: {best_hand['strength']:.2f}%")
         
-        # Visualize position distribution
+        # Visualize updated position distribution
         last_position, position_counts = get_position_stats(ranked_hands)
         visualize_my_position(position_counts, best_hand['position'])
     else:
